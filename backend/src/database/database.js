@@ -56,6 +56,7 @@ class Database {
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         phoneNumber TEXT UNIQUE NOT NULL,
+        password TEXT,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `;
@@ -120,8 +121,8 @@ class Database {
       const userId = userData.id || 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
       const createdAt = new Date().toISOString();
       
-      const query = 'INSERT INTO users (id, phoneNumber, createdAt) VALUES (?, ?, ?)';
-      this.db.run(query, [userId, userData.phoneNumber, createdAt], function(err) {
+      const query = 'INSERT INTO users (id, phoneNumber, password, createdAt) VALUES (?, ?, ?, ?)';
+      this.db.run(query, [userId, userData.phoneNumber, userData.password || null, createdAt], function(err) {
         if (err) {
           if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
             reject(new Error('User with this phone number already exists'));

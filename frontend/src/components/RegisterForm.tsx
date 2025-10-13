@@ -8,6 +8,8 @@ interface RegisterFormProps {
 const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onNavigateToLogin }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -88,6 +90,26 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onNaviga
       return;
     }
 
+    if (!password) {
+      setError('密码不能为空');
+      return;
+    }
+
+    if (!confirmPassword) {
+      setError('确认密码不能为空');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('两次输入的密码不一致');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('密码长度至少6位');
+      return;
+    }
+
     if (!agreeToTerms) {
       setError('请同意服务协议和隐私政策');
       return;
@@ -105,14 +127,20 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onNaviga
         body: JSON.stringify({
           phoneNumber,
           verificationCode,
+          password,
+          confirmPassword,
         }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // 注册成功
-        onRegisterSuccess(data.user);
+        // 注册成功，保存token到localStorage
+        if (data.data && data.data.token) {
+          localStorage.setItem('authToken', data.data.token);
+          localStorage.setItem('userInfo', JSON.stringify(data.data.user));
+        }
+        onRegisterSuccess(data.data);
       } else {
         setError(data.message || '注册失败');
       }
@@ -167,6 +195,28 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onNaviga
                 {countdown > 0 ? `${countdown}s后重新获取` : '获取验证码'}
               </button>
             </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">设置密码</label>
+            <input
+              type="password"
+              className="form-input"
+              placeholder="请设置密码（至少6位）"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">确认密码</label>
+            <input
+              type="password"
+              className="form-input"
+              placeholder="请再次输入密码"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
           </div>
 
           {error && <div className="error-message">{error}</div>}

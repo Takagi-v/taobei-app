@@ -24,25 +24,34 @@ function App() {
     }
   }, []);
 
-  const handleLoginSuccess = (userInfo: any) => {
+  const handleLoginSuccess = (loginData: any) => {
     // 处理登录成功逻辑
-    setUser(userInfo);
-    // 将用户信息保存到localStorage
-    localStorage.setItem('userInfo', JSON.stringify(userInfo));
-    setCurrentPage('home');
+    console.log('登录成功，接收到的数据:', loginData);
+    if (loginData && loginData.user) {
+      setUser(loginData.user);
+      // token已经在LoginForm中保存到localStorage了
+      setCurrentPage('home');
+    } else {
+      console.error('登录数据格式错误:', loginData);
+    }
   };
 
-  const handleRegisterSuccess = (userInfo: any) => {
+  const handleRegisterSuccess = (registerData: any) => {
     // 处理注册成功逻辑
-    setUser(userInfo);
-    // 将用户信息保存到localStorage
-    localStorage.setItem('userInfo', JSON.stringify(userInfo));
-    setCurrentPage('home');
+    console.log('注册成功，接收到的数据:', registerData);
+    if (registerData && registerData.user) {
+      setUser(registerData.user);
+      // token已经在RegisterForm中保存到localStorage了
+      setCurrentPage('home');
+    } else {
+      console.error('注册数据格式错误:', registerData);
+    }
   };
 
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem('userInfo');
+    localStorage.removeItem('authToken');
     setCurrentPage('home');
   };
 

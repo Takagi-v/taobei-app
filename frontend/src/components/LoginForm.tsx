@@ -108,8 +108,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegis
       const data = await response.json();
 
       if (response.ok) {
-        // 登录成功
-        onLoginSuccess(data.user);
+        // 登录成功，保存token到localStorage
+        if (data.data && data.data.token) {
+          localStorage.setItem('authToken', data.data.token);
+          localStorage.setItem('userInfo', JSON.stringify(data.data.user));
+        }
+        onLoginSuccess(data.data);
       } else {
         setError(data.message || '登录失败');
       }
