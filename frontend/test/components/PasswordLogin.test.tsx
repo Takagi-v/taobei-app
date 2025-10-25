@@ -36,10 +36,8 @@ describe('密码登录功能测试', () => {
       />
     );
 
-    // 点击短信登录按钮 - 使用getAllByText获取所有"短信登录"文本，然后选择第二个（按钮）
-    const smsLoginElements = screen.getAllByText('短信登录');
-    // 第一个是标签页，第二个是按钮
-    const smsLoginButton = smsLoginElements[1];
+    // 点击短信登录按钮
+    const smsLoginButton = screen.getByText('短信登录');
     fireEvent.click(smsLoginButton);
 
     // 应该显示验证码输入框
@@ -159,10 +157,10 @@ describe('密码登录功能测试', () => {
       />
     );
 
-    const loginButton = screen.getByText('登录');
+    const form = document.querySelector('form');
 
-    // 不填写任何信息直接点击登录
-    fireEvent.click(loginButton);
+    // 不填写任何信息直接提交表单
+    fireEvent.submit(form);
 
     await waitFor(() => {
       expect(screen.getByText('手机号不能为空')).toBeInTheDocument();
@@ -171,7 +169,7 @@ describe('密码登录功能测试', () => {
     // 只填写手机号
     const phoneInput = screen.getByPlaceholderText('账号名/邮箱/手机号');
     fireEvent.change(phoneInput, { target: { value: '13800138000' } });
-    fireEvent.click(loginButton);
+    fireEvent.submit(form);
 
     await waitFor(() => {
       expect(screen.getByText('密码不能为空')).toBeInTheDocument();
@@ -188,12 +186,12 @@ describe('密码登录功能测试', () => {
 
     const phoneInput = screen.getByPlaceholderText('账号名/邮箱/手机号');
     const passwordInput = screen.getByPlaceholderText('输入登录密码');
-    const loginButton = screen.getByText('登录');
+    const form = document.querySelector('form');
 
     // 输入无效的手机号
     fireEvent.change(phoneInput, { target: { value: '123' } });
     fireEvent.change(passwordInput, { target: { value: 'test123456' } });
-    fireEvent.click(loginButton);
+    fireEvent.submit(form);
 
     await waitFor(() => {
       expect(screen.getByText('手机号格式不正确')).toBeInTheDocument();

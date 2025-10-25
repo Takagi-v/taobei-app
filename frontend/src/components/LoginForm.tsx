@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface LoginFormProps {
   onLoginSuccess: (loginData: any) => void;
@@ -13,14 +13,28 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegis
   const [countryCode, setCountryCode] = useState('+86');
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // 验证手机号格式
+  const validatePhoneNumber = (phone: string): boolean => {
+    const phoneRegex = /^1[3-9]\d{9}$/;
+    return phoneRegex.test(phone);
+  };
 
   const handleSendCode = async () => {
     if (!phoneNumber) {
-      alert('请输入手机号');
+      setErrorMessage('请输入手机号');
+      return;
+    }
+
+    if (!validatePhoneNumber(phoneNumber)) {
+      setErrorMessage('手机号格式不正确');
       return;
     }
 
     try {
+      setErrorMessage('');
       const response = await fetch('/api/auth/send-verification-code', {
         method: 'POST',
         headers: {
@@ -44,11 +58,11 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegis
         }, 1000);
       } else {
         const error = await response.json();
-        alert(error.message || '发送验证码失败');
+        setErrorMessage(error.message || '发送验证码失败');
       }
     } catch (error) {
       console.error('发送验证码失败:', error);
-      alert('发送验证码失败，请重试');
+      setErrorMessage('网络错误，请重试');
     }
   };
 
@@ -57,11 +71,24 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegis
     
     try {
       if (loginType === 'password') {
-        if (!phoneNumber || !password) {
-          alert('请填写完整信息');
+        if (!phoneNumber) {
+          setErrorMessage('手机号不能为空');
           return;
         }
         
+        if (!password) {
+          setErrorMessage('密码不能为空');
+          return;
+        }
+        
+        if (!validatePhoneNumber(phoneNumber)) {
+          setErrorMessage('手机号格式不正确');
+          return;
+        }
+
+        setErrorMessage('');
+        setIsLoading(true);
+
         const response = await fetch('/api/auth/login-password', {
           method: 'POST',
           headers: {
@@ -78,14 +105,17 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegis
           localStorage.setItem('userInfo', JSON.stringify(data.data.user));
           onLoginSuccess(data.data);
         } else {
-          alert(data.message || '登录失败');
+          setErrorMessage(data.message || '登录失败');
         }
       } else if (loginType === 'sms') {
         if (!phoneNumber || !verificationCode) {
-          alert('请填写完整信息');
+          setErrorMessage('请填写完整信息');
           return;
         }
         
+        setErrorMessage('');
+        setIsLoading(true);
+
         const response = await fetch('/api/auth/login', {
           method: 'POST',
           headers: {
@@ -104,12 +134,14 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegis
            localStorage.setItem('userInfo', JSON.stringify(data.data.user));
            onLoginSuccess(data.data);
          } else {
-           alert(data.message || '登录失败');
+           setErrorMessage(data.message || '登录失败');
          }
       }
     } catch (error) {
       console.error('登录失败:', error);
-      alert('登录失败，请重试');
+      setErrorMessage('网络错误，请重试');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -208,12 +240,19 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegis
 
           {/* 表单 */}
           <form onSubmit={handleSubmit} className="login-form">
+            {/* 错误信息显示 */}
+            {errorMessage && (
+              <div className="error-message">
+                {errorMessage}
+              </div>
+            )}
+
             {loginType === 'password' ? (
               <>
                 {/* 密码登录表单 */}
                 <div className="form-group">
                   <input
-                    type="text"
+                    type="tel"
                     className="form-input"
                     placeholder="账号名/邮箱/手机号"
                     value={phoneNumber}
@@ -225,7 +264,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegis
                   <input
                     type="password"
                     className="form-input"
-                    placeholder="请输入登录密码"
+                    placeholder="输入登录密码"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -270,7 +309,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegis
                     <input
                       type="text"
                       className="form-input verification-input"
-                      placeholder="请输入验证码"
+                      placeholder="输入验证码"
                       value={verificationCode}
                       onChange={(e) => setVerificationCode(e.target.value)}
                       maxLength={6}
@@ -289,8 +328,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegis
               </>
             )}
 
-            <button type="submit" className="login-btn">
-              登录
+            <button type="submit" className="login-btn" disabled={isLoading}>
+              {isLoading ? '登录中...' : '登录'}
             </button>
 
             {/* <div className="login-options">
@@ -302,7 +341,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegis
 
             <div className="register-link">
               <span>还没有账号？</span>
-              <button type="button" className="btn-link" onClick={onNavigateToRegister}>立即注册</button>
+              <button type="button" className="btn-link" onClick={onNavigateToRegister}>免费注册</button>
             </div>
 
             <div className="agreement">
@@ -326,125 +365,98 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegis
           background: white;
           border-radius: 12px;
           box-shadow: 0 8px 40px rgba(0, 0, 0, 0.12);
-          overflow: hidden;
           display: flex;
-          width: 100%;
           max-width: 900px;
-          min-height: 550px;
+          width: 100%;
+          overflow: hidden;
         }
 
-        /* 左侧二维码区域 */
         .qr-section {
           flex: 1;
-          padding: 50px 40px;
+          padding: 60px 40px;
+          background: linear-gradient(135deg, #ff6600 0%, #ff8533 100%);
+          color: white;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          background: linear-gradient(135deg, #fafbfc 0%, #f5f6f7 100%);
-          border-right: 1px solid #e8e8e8;
         }
 
         .qr-title {
           font-size: 24px;
-          font-weight: 700;
-          color: #1a1a1a;
-          margin-bottom: 40px;
+          font-weight: 600;
+          margin-bottom: 30px;
           text-align: center;
-          letter-spacing: 0.5px;
         }
 
         .qr-container {
-          margin-bottom: 24px;
+          background: white;
+          padding: 20px;
+          border-radius: 12px;
+          margin-bottom: 20px;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         }
 
         .qr-code {
-          padding: 24px;
-          background: white;
-          border: 2px solid #f0f0f0;
-          border-radius: 12px;
-          display: inline-block;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .qr-description {
           font-size: 14px;
-          color: #666;
           text-align: center;
-          margin-bottom: 10px;
+          margin-bottom: 15px;
           line-height: 1.5;
         }
 
         .taobao-link {
-          color: #ff6600;
-          cursor: pointer;
-        }
-
-        .taobao-link:hover {
-          text-decoration: underline;
+          color: #ffeb3b;
+          font-weight: 600;
         }
 
         .qr-help {
           font-size: 12px;
-          color: #999;
-          text-align: center;
+          color: rgba(255, 255, 255, 0.8);
+          text-decoration: underline;
           cursor: pointer;
         }
 
-        .qr-help:hover {
-          color: #ff6600;
-          text-decoration: underline;
-        }
-
-        /* 分割线 */
         .divider {
           width: 1px;
           background: #e8e8e8;
-          margin: 20px 0;
         }
 
-        /* 右侧表单区域 */
         .form-section {
           flex: 1;
-          padding: 50px 45px;
+          padding: 60px 40px;
           display: flex;
           flex-direction: column;
-          background: white;
+          justify-content: center;
         }
 
         .login-tabs {
           display: flex;
-          margin-bottom: 35px;
-          border-bottom: 2px solid #f5f5f5;
+          margin-bottom: 30px;
+          border-bottom: 1px solid #e8e8e8;
         }
 
         .tab-button {
-          padding: 16px 24px;
-          border: none;
+          flex: 1;
+          padding: 12px 0;
           background: none;
-          font-size: 18px;
-          color: #8c8c8c;
-          cursor: pointer;
-          position: relative;
-          margin-right: 40px;
+          border: none;
+          font-size: 16px;
           font-weight: 500;
+          color: #666;
+          cursor: pointer;
+          border-bottom: 2px solid transparent;
           transition: all 0.3s ease;
         }
 
         .tab-button.active {
           color: #ff6600;
-          font-weight: 700;
-        }
-
-        .tab-button.active::after {
-          content: '';
-          position: absolute;
-          bottom: -2px;
-          left: 0;
-          right: 0;
-          height: 3px;
-          background: #ff6600;
-          border-radius: 2px 2px 0 0;
+          border-bottom-color: #ff6600;
         }
 
         .tab-button:hover {
@@ -452,11 +464,22 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegis
         }
 
         .login-form {
-          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+
+        .error-message {
+          background: #fff2f0;
+          border: 1px solid #ffccc7;
+          color: #ff4d4f;
+          padding: 12px 16px;
+          border-radius: 6px;
+          font-size: 14px;
+          margin-bottom: 10px;
         }
 
         .form-group {
-          margin-bottom: 24px;
           position: relative;
         }
 
