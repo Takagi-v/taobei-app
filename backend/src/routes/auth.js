@@ -1,22 +1,32 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
 const Database = require('../database/database');
+const jwt = require('jsonwebtoken');
 
 const router = express.Router();
-const db = new Database();
 
-// 初始化数据库连接
-(async () => {
-  try {
-    await db.connect();
-    await db.initTables();
-  } catch (error) {
-    console.error('Database initialization failed:', error);
+// 创建默认数据库实例
+let db = new Database();
+
+// 初始化数据库连接（非测试环境）
+if (process.env.NODE_ENV !== 'test') {
+  db.connect().then(() => {
+    console.log('Auth routes: Database connected');
+  }).catch(err => {
+    console.error('Auth routes: Database connection failed:', err);
+  });
+}
+
+// 允许外部设置数据库实例（用于测试）
+router.setDatabase = (database) => {
+  if (database && typeof database.connect === 'function') {
+    db = database;
   }
-})();
+};
 
-// 验证码发送频率限制（内存存储，生产环境应使用Redis）
-const sendCodeLimits = new Map();
+// 获取当前数据库实例
+router.getDatabase = () => {
+  return db;
+};
 
 // 手机号格式验证
 function isValidPhoneNumber(phoneNumber) {
@@ -24,166 +34,114 @@ function isValidPhoneNumber(phoneNumber) {
   return phoneRegex.test(phoneNumber);
 }
 
-// 生成6位验证码
-function generateVerificationCode() {
-  // 在测试环境中使用固定验证码
-  if (process.env.NODE_ENV === 'test') {
-    return '123456';
-  }
-  return Math.floor(100000 + Math.random() * 900000).toString();
+// 生成JWT token
+function generateToken(user) {
+  return jwt.sign(
+    { userId: user.id, phoneNumber: user.phoneNumber },
+    process.env.JWT_SECRET || 'your-secret-key',
+    { expiresIn: '24h' }
+  );
 }
 
-// 生成JWT令牌
-function generateToken(userId) {
-  const secret = process.env.JWT_SECRET || 'your-secret-key';
-  return jwt.sign({ userId }, secret, { expiresIn: '24h' });
-}
-
-// API-POST-SendVerificationCode 接口实现
+// 发送验证码接口
 router.post('/send-verification-code', async (req, res) => {
-  console.log('=== 发送验证码接口开始 ===');
-  console.log('请求时间:', new Date().toISOString());
-  console.log('请求体:', req.body);
-  
   try {
     const { phoneNumber } = req.body;
-    console.log('步骤1: 提取手机号 -', phoneNumber);
-    
-    // 校验手机号是否为空
+
+    // 验证手机号
     if (!phoneNumber) {
-      console.log('步骤2: 手机号为空，返回错误');
       return res.status(400).json({
         success: false,
         message: '手机号不能为空'
       });
     }
 
-    // 校验手机号格式
-    console.log('步骤2: 校验手机号格式');
     if (!isValidPhoneNumber(phoneNumber)) {
-      console.log('步骤2: 手机号格式不正确，返回错误');
       return res.status(400).json({
         success: false,
         message: '手机号格式不正确'
       });
     }
-    console.log('步骤2: 手机号格式正确');
 
-    // 检查发送频率限制
-    console.log('步骤3: 检查发送频率限制');
-    const now = Date.now();
-    const lastSent = sendCodeLimits.get(phoneNumber);
-    console.log('上次发送时间:', lastSent ? new Date(lastSent).toISOString() : '无');
-    if (lastSent && now - lastSent < 60000) { // 60秒限制
-      console.log('步骤3: 发送过于频繁，返回错误');
-      return res.status(429).json({
-        success: false,
-        message: '发送过于频繁，请稍后再试'
-      });
+    // 生成6位数验证码
+    let verificationCode;
+    if (process.env.NODE_ENV === 'test') {
+      // 测试环境使用固定验证码
+      verificationCode = '123456';
+    } else {
+      // 生产环境使用随机验证码
+      verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     }
-    console.log('步骤3: 频率检查通过');
-
-    // 生成6位验证码
-    console.log('步骤4: 生成验证码');
-    const verificationCode = generateVerificationCode();
-    const expiresAt = new Date(Date.now() + 60 * 1000); // 60秒后过期
-    console.log('生成的验证码:', verificationCode);
-    console.log('过期时间:', expiresAt.toISOString());
+    
+    // 设置过期时间（5分钟）
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
     // 保存验证码到数据库
-    console.log('步骤5: 保存验证码到数据库');
     await db.saveVerificationCode({
       phoneNumber,
       code: verificationCode,
       expiresAt
     });
-    console.log('步骤5: 验证码保存成功');
 
-    // 打印验证码到控制台（模拟发送短信）
-    console.log(`📱 验证码发送到 ${phoneNumber}: ${verificationCode}`);
+    // 在实际项目中，这里应该调用短信服务发送验证码
+    // 这里只是模拟发送
+    console.log(`验证码已发送到 ${phoneNumber}: ${verificationCode}`);
 
-    // 记录发送时间
-    console.log('步骤6: 记录发送时间');
-    sendCodeLimits.set(phoneNumber, now);
-
-    console.log('步骤7: 返回成功响应');
-    res.status(200).json({
+    res.json({
       success: true,
-      message: '验证码发送成功',
-      expiresIn: 60
+      message: '验证码发送成功'
     });
-    console.log('=== 发送验证码接口结束 ===\n');
   } catch (error) {
-    console.error('❌ 发送验证码错误:', error);
-    console.log('=== 发送验证码接口异常结束 ===\n');
+    console.error('发送验证码失败:', error);
     res.status(500).json({
       success: false,
-      message: '服务器内部错误'
+      message: '发送验证码失败'
     });
   }
 });
 
-// API-POST-Login 接口实现
+// 验证码登录接口
 router.post('/login', async (req, res) => {
-  console.log('=== 登录接口开始 ===');
-  console.log('请求时间:', new Date().toISOString());
-  console.log('请求体:', req.body);
-  
   try {
     const { phoneNumber, verificationCode } = req.body;
-    console.log('步骤1: 提取登录参数 - 手机号:', phoneNumber, '验证码:', verificationCode);
-    
-    // 校验必需字段
-    if (!phoneNumber) {
-      console.log('步骤2: 手机号为空，返回错误');
+
+    if (!phoneNumber || !verificationCode) {
       return res.status(400).json({
         success: false,
-        message: '手机号不能为空'
+        message: '手机号和验证码不能为空'
       });
     }
 
-    if (!verificationCode) {
-      console.log('步骤2: 验证码为空，返回错误');
+    if (!isValidPhoneNumber(phoneNumber)) {
       return res.status(400).json({
         success: false,
-        message: '验证码不能为空'
-      });
-    }
-    console.log('步骤2: 必需字段校验通过');
-
-    // 校验手机号是否已注册
-    console.log('步骤3: 查找用户');
-    const user = await db.findUserByPhone(phoneNumber);
-    console.log('步骤3: 用户查找结果:', user ? '用户存在' : '用户不存在');
-    if (!user) {
-      console.log('步骤3: 用户不存在，返回错误');
-      return res.status(404).json({
-        success: false,
-        message: '用户不存在，请先注册'
+        message: '手机号格式不正确'
       });
     }
 
-    // 校验验证码是否正确
-    console.log('步骤4: 验证验证码');
-    const isCodeValid = await db.verifyCode(phoneNumber, verificationCode);
-    console.log('步骤4: 验证码验证结果:', isCodeValid ? '有效' : '无效');
-    if (!isCodeValid) {
-      console.log('步骤4: 验证码无效，返回错误');
+    // 验证验证码
+    const isValidCode = await db.verifyCode(phoneNumber, verificationCode);
+    if (!isValidCode) {
       return res.status(401).json({
         success: false,
         message: '验证码错误或已过期'
       });
     }
 
-    // 生成JWT令牌
-    console.log('步骤5: 生成JWT令牌');
-    const token = generateToken(user.id);
-    console.log('步骤5: JWT令牌生成成功');
+    // 查找或创建用户
+    let user = await db.findUserByPhone(phoneNumber);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: '用户不存在'
+      });
+    }
 
-    console.log('步骤6: 返回登录成功响应');
-    const responseData = {
+    // 生成token
+    const token = generateToken(user);
+
+    res.json({
       success: true,
-      message: '登录成功',
       data: {
         token,
         user: {
@@ -191,34 +149,75 @@ router.post('/login', async (req, res) => {
           phoneNumber: user.phoneNumber
         }
       }
-    };
-    console.log('响应数据:', responseData);
-    
-    res.status(200).json(responseData);
-    console.log('=== 登录接口结束 ===\n');
+    });
   } catch (error) {
-    console.error('❌ 登录错误:', error);
-    console.log('=== 登录接口异常结束 ===\n');
+    console.error('登录失败:', error);
     res.status(500).json({
       success: false,
-      message: '服务器内部错误'
+      message: '登录失败'
     });
   }
 });
 
-// API-POST-Register 接口实现
-router.post('/register', async (req, res) => {
-  console.log('=== 注册接口开始 ===');
-  console.log('请求时间:', new Date().toISOString());
-  console.log('请求体:', req.body);
-  
+// 密码登录接口
+router.post('/login-password', async (req, res) => {
   try {
-    const { phoneNumber, verificationCode, password, confirmPassword, agreeToTerms } = req.body;
-    console.log('步骤1: 提取注册参数 - 手机号:', phoneNumber, '验证码:', verificationCode, '密码:', password ? '已提供' : '未提供', '确认密码:', confirmPassword ? '已提供' : '未提供');
-    
-    // 校验必需字段
+    const { phoneNumber, password } = req.body;
+
+    // 验证必填字段
+    if (!phoneNumber || !password || phoneNumber.trim() === '' || password.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: '手机号和密码不能为空'
+      });
+    }
+
+    // 验证手机号格式
+    if (!isValidPhoneNumber(phoneNumber)) {
+      return res.status(400).json({
+        success: false,
+        message: '手机号格式不正确'
+      });
+    }
+
+    // 验证用户密码
+    const user = await db.verifyPassword(phoneNumber, password);
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: '用户名或密码错误'
+      });
+    }
+
+    // 生成token
+    const token = generateToken(user);
+
+    res.json({
+      success: true,
+      data: {
+        token,
+        user: {
+          id: user.id,
+          phoneNumber: user.phoneNumber
+        }
+      }
+    });
+  } catch (error) {
+    console.error('密码登录失败:', error);
+    res.status(500).json({
+      success: false,
+      message: '登录失败'
+    });
+  }
+});
+
+// 注册接口
+router.post('/register', async (req, res) => {
+  try {
+    const { phoneNumber, verificationCode, password, confirmPassword, agreement } = req.body;
+
+    // 验证必填字段
     if (!phoneNumber) {
-      console.log('步骤2: 手机号为空，返回错误');
       return res.status(400).json({
         success: false,
         message: '手机号不能为空'
@@ -226,7 +225,6 @@ router.post('/register', async (req, res) => {
     }
 
     if (!verificationCode) {
-      console.log('步骤2: 验证码为空，返回错误');
       return res.status(400).json({
         success: false,
         message: '验证码不能为空'
@@ -234,7 +232,6 @@ router.post('/register', async (req, res) => {
     }
 
     if (!password) {
-      console.log('步骤2: 密码为空，返回错误');
       return res.status(400).json({
         success: false,
         message: '密码不能为空'
@@ -242,88 +239,92 @@ router.post('/register', async (req, res) => {
     }
 
     if (!confirmPassword) {
-      console.log('步骤2: 确认密码为空，返回错误');
       return res.status(400).json({
         success: false,
         message: '确认密码不能为空'
       });
     }
 
+    if (!agreement) {
+      return res.status(400).json({
+        success: false,
+        message: '请同意用户协议'
+      });
+    }
+
+    // 验证手机号格式
+    if (!isValidPhoneNumber(phoneNumber)) {
+      return res.status(400).json({
+        success: false,
+        message: '手机号格式不正确'
+      });
+    }
+
+    // 验证密码
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: '密码长度不能少于6位'
+      });
+    }
+
     if (password !== confirmPassword) {
-      console.log('步骤2: 密码不匹配，返回错误');
       return res.status(400).json({
         success: false,
         message: '两次输入的密码不一致'
       });
     }
 
-    // 密码强度验证
-    if (password.length < 6) {
-      console.log('步骤2: 密码长度不足，返回错误');
-      return res.status(400).json({
-        success: false,
-        message: '密码长度至少6位'
-      });
-    }
-    console.log('步骤2: 必需字段校验通过');
-
-    // 校验验证码是否正确
-    console.log('步骤3: 验证验证码');
-    const isCodeValid = await db.verifyCode(phoneNumber, verificationCode);
-    console.log('步骤3: 验证码验证结果:', isCodeValid ? '有效' : '无效');
-    if (!isCodeValid) {
-      console.log('步骤3: 验证码无效，返回错误');
+    // 验证验证码
+    const isValidCode = await db.verifyCode(phoneNumber, verificationCode);
+    if (!isValidCode) {
       return res.status(401).json({
         success: false,
         message: '验证码错误或已过期'
       });
     }
 
-    // 校验手机号是否已注册
-    console.log('步骤4: 检查用户是否已存在');
+    // 检查用户是否已存在
     const existingUser = await db.findUserByPhone(phoneNumber);
-    console.log('步骤4: 用户检查结果:', existingUser ? '用户已存在' : '用户不存在');
     if (existingUser) {
-      console.log('步骤4: 用户已存在，返回错误');
       return res.status(409).json({
         success: false,
-        message: '用户已存在，请直接登录'
+        message: '该手机号已注册'
       });
     }
 
-    // 创建新用户
-    console.log('步骤5: 创建新用户');
-    const newUser = await db.createUser({ phoneNumber, password });
-    console.log('步骤5: 用户创建成功，用户ID:', newUser.id);
+    // 创建用户
+    const user = await db.createUser({
+      phoneNumber,
+      password
+    });
 
-    // 生成JWT令牌
-    console.log('步骤6: 生成JWT令牌');
-    const token = generateToken(newUser.id);
-    console.log('步骤6: JWT令牌生成成功');
+    // 生成token
+    const token = generateToken(user);
 
-    console.log('步骤7: 返回注册成功响应');
-    const responseData = {
+    res.status(201).json({
       success: true,
-      message: '注册成功',
       data: {
         token,
         user: {
-          id: newUser.id,
-          phoneNumber: newUser.phoneNumber
+          id: user.id,
+          phoneNumber: user.phoneNumber
         }
       }
-    };
-    console.log('响应数据:', responseData);
-    
-    res.status(201).json(responseData);
-    console.log('=== 注册接口结束 ===\n');
-  } catch (error) {
-    console.error('❌ 注册错误:', error);
-    console.log('=== 注册接口异常结束 ===\n');
-    res.status(500).json({
-      success: false,
-      message: '服务器内部错误'
     });
+  } catch (error) {
+    console.error('注册失败:', error);
+    if (error.message === 'User with this phone number already exists') {
+      res.status(409).json({
+        success: false,
+        message: '该手机号已注册'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: '注册失败'
+      });
+    }
   }
 });
 

@@ -44,7 +44,7 @@ const Header: React.FC<HeaderProps> = ({
           {user ? (
             <div className="user-info">
               <span className="user-greeting">
-                你好，<span className="username">{user.phone}</span>
+                你好，<span className="username">{user.phoneNumber}</span>
               </span>
               <button className="btn btn-link logout-btn" onClick={onLogout}>
                 退出登录

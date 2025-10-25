@@ -45,7 +45,8 @@ describe('Database Operations', () => {
     test('应该能够创建新用户', async () => {
       const newUser = {
         phoneNumber: '13800138001',
-        id: 'new-user-id'
+        id: 'new-user-id',
+        password: 'test123456'
       };
 
       const createdUser = await db.createUser(newUser);
@@ -53,17 +54,20 @@ describe('Database Operations', () => {
       expect(createdUser).toBeDefined();
       expect(createdUser.phoneNumber).toBe('13800138001');
       expect(createdUser.id).toBe('new-user-id');
+      expect(createdUser.password).toBe('test123456');
       expect(createdUser.createdAt).toBeDefined();
     });
 
     test('不应该允许创建重复手机号的用户', async () => {
       const user1 = {
         phoneNumber: '13800138002',
-        id: 'user-1'
+        id: 'user-1',
+        password: 'password1'
       };
       const user2 = {
         phoneNumber: '13800138002',
-        id: 'user-2'
+        id: 'user-2',
+        password: 'password2'
       };
 
       await db.createUser(user1);

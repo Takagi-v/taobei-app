@@ -74,6 +74,9 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onNaviga
     e.preventDefault();
     setError('');
 
+    // 添加调试日志
+    console.log('handleRegister called, agreeToTerms:', agreeToTerms);
+
     // 校验输入
     if (!phoneNumber) {
       setError('请输入手机号');
@@ -111,7 +114,15 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onNaviga
     }
 
     if (!agreeToTerms) {
+      console.log('User agreement not checked, showing error');
       setError('请同意服务协议和隐私政策');
+      return;
+    }
+
+    console.log('All validations passed, proceeding with registration');
+
+    // 防止重复提交
+    if (isLoading) {
       return;
     }
 
@@ -129,6 +140,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onNaviga
           verificationCode,
           password,
           confirmPassword,
+          agreement: agreeToTerms,
         }),
       });
 
@@ -243,7 +255,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onNaviga
           <button
             type="submit"
             className="btn btn-primary register-btn"
-            disabled={isLoading || !agreeToTerms}
+            disabled={isLoading}
           >
             {isLoading && <span className="loading"></span>}
             同意协议并注册

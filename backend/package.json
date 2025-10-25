@@ -30,6 +30,7 @@
     "collectCoverageFrom": [
       "src/**/*.js",
       "!src/app.js"
-    ]
+    ],
+    "maxWorkers": 1
   }
 }

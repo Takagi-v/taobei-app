@@ -8,10 +8,12 @@ interface LoginFormProps {
 const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegister }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const [loginType, setLoginType] = useState<'sms' | 'qr'>('sms');
+  const [loginType, setLoginType] = useState<'sms' | 'qr' | 'password'>('sms');
+  const [smsLoginMode, setSmsLoginMode] = useState<'code' | 'password'>('password');
 
   // 倒计时效果
   useEffect(() => {
@@ -85,24 +87,34 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegis
       return;
     }
 
-    if (!verificationCode) {
-      setError('验证码不能为空');
-      return;
+    // 根据登录模式校验不同字段
+    if (smsLoginMode === 'code') {
+      if (!verificationCode) {
+        setError('验证码不能为空');
+        return;
+      }
+    } else {
+      if (!password) {
+        setError('密码不能为空');
+        return;
+      }
     }
 
     try {
       setIsLoading(true);
 
-      // 调用登录API
-      const response = await fetch('/api/auth/login', {
+      // 根据登录模式调用不同的API
+      const apiUrl = smsLoginMode === 'code' ? '/api/auth/login' : '/api/auth/login-password';
+      const requestBody = smsLoginMode === 'code' 
+        ? { phoneNumber, verificationCode }
+        : { phoneNumber, password };
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          phoneNumber,
-          verificationCode,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -188,21 +200,31 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegis
             </div>
 
             <div className="form-group verification-group">
-              <input
-                type="text"
-                className="form-input verification-input"
-                placeholder="输入登录密码"
-                value={verificationCode}
-                onChange={(e) => setVerificationCode(e.target.value)}
-                maxLength={6}
-              />
+              {smsLoginMode === 'password' ? (
+                <input
+                  type="password"
+                  className="form-input"
+                  placeholder="输入登录密码"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              ) : (
+                <input
+                  type="text"
+                  className="form-input verification-input"
+                  placeholder="输入验证码"
+                  value={verificationCode}
+                  onChange={(e) => setVerificationCode(e.target.value)}
+                  maxLength={6}
+                />
+              )}
               <button
                 type="button"
                 className="btn btn-secondary get-code-btn"
-                onClick={handleGetVerificationCode}
-                disabled={countdown > 0 || isLoading}
+                onClick={smsLoginMode === 'password' ? () => setSmsLoginMode('code') : handleGetVerificationCode}
+                disabled={smsLoginMode === 'code' && (countdown > 0 || isLoading)}
               >
-                {countdown > 0 ? `${countdown}s` : '忘记密码'}
+                {smsLoginMode === 'password' ? '短信登录' : (countdown > 0 ? `${countdown}s` : '获取验证码')}
               </button>
             </div>
 
@@ -218,6 +240,17 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLoginSuccess, onNavigateToRegis
             </button>
 
             <div className="login-options">
+              {smsLoginMode === 'password' && (
+                <div className="forgot-password">
+                  <button 
+                    type="button" 
+                    className="btn btn-link"
+                    onClick={() => setSmsLoginMode('code')}
+                  >
+                    忘记密码？
+                  </button>
+                </div>
+              )}
               <div className="quick-login">
                 <span className="quick-login-icon">📱</span>
                 <span className="quick-login-icon">💬</span>

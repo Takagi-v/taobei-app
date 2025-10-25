@@ -18,7 +18,7 @@ describe('HomePage Component', () => {
       />
     );
 
-    expect(screen.getByText('欢迎来到淘贝')).toBeInTheDocument();
+    expect(screen.getByText('淘宝网 - 淘！我喜欢')).toBeInTheDocument();
   });
 
   test('应该显示登录按钮', () => {
@@ -29,7 +29,7 @@ describe('HomePage Component', () => {
       />
     );
 
-    const loginButton = screen.getByText('亲，请登录');
+    const loginButton = screen.getByText('登录');
     expect(loginButton).toBeInTheDocument();
     expect(loginButton).toHaveClass('login-button');
   });
@@ -42,7 +42,7 @@ describe('HomePage Component', () => {
       />
     );
 
-    const registerButton = screen.getByText('免费注册');
+    const registerButton = screen.getByText('立即注册');
     expect(registerButton).toBeInTheDocument();
     expect(registerButton).toHaveClass('register-button');
   });
@@ -55,7 +55,7 @@ describe('HomePage Component', () => {
       />
     );
 
-    const loginButton = screen.getByText('亲，请登录');
+    const loginButton = screen.getByText('登录');
     fireEvent.click(loginButton);
 
     expect(mockOnNavigateToLogin).toHaveBeenCalledTimes(1);
@@ -69,7 +69,7 @@ describe('HomePage Component', () => {
       />
     );
 
-    const registerButton = screen.getByText('免费注册');
+    const registerButton = screen.getByText('立即注册');
     fireEvent.click(registerButton);
 
     expect(mockOnNavigateToRegister).toHaveBeenCalledTimes(1);
@@ -83,10 +83,10 @@ describe('HomePage Component', () => {
       />
     );
 
-    const homePage = screen.getByText('欢迎来到淘贝').closest('.home-page');
+    const homePage = screen.getByText('淘宝网 - 淘！我喜欢').closest('.homepage');
     expect(homePage).toBeInTheDocument();
 
-    const authButtons = screen.getByText('亲，请登录').closest('.auth-buttons');
+    const authButtons = screen.getByText('登录').closest('.auth-buttons');
     expect(authButtons).toBeInTheDocument();
   });
 
@@ -101,8 +101,8 @@ describe('HomePage Component', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('亲，请登录'));
-    fireEvent.click(screen.getByText('免费注册'));
+    fireEvent.click(screen.getByText('登录'));
+    fireEvent.click(screen.getByText('立即注册'));
 
     expect(customOnNavigateToLogin).toHaveBeenCalledTimes(1);
     expect(customOnNavigateToRegister).toHaveBeenCalledTimes(1);

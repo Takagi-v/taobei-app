@@ -72,12 +72,23 @@ class Database {
       )
     `;
 
+    let tablesCreated = 0;
+    const totalTables = 2;
+
+    const checkComplete = () => {
+      tablesCreated++;
+      if (tablesCreated === totalTables) {
+        resolve();
+      }
+    };
+
     this.db.serialize(() => {
       this.db.run(createUsersTable, (err) => {
         if (err) {
           reject(err);
           return;
         }
+        checkComplete();
       });
 
       this.db.run(createVerificationCodesTable, (err) => {
@@ -85,7 +96,7 @@ class Database {
           reject(err);
           return;
         }
-        resolve();
+        checkComplete();
       });
     });
   }
@@ -133,6 +144,7 @@ class Database {
           resolve({
             id: userId,
             phoneNumber: userData.phoneNumber,
+            password: userData.password,
             createdAt: createdAt
           });
         }
@@ -178,13 +190,7 @@ class Database {
   // DB-VerifyCode 接口实现
   async verifyCode(phoneNumber, code) {
     return new Promise((resolve, reject) => {
-      const query = `
-        SELECT * FROM verification_codes 
-        WHERE phoneNumber = ? AND code = ?
-        ORDER BY createdAt DESC 
-        LIMIT 1
-      `;
-      
+      const query = 'SELECT * FROM verification_codes WHERE phoneNumber = ? AND code = ? AND used = FALSE';
       this.db.get(query, [phoneNumber, code], (err, row) => {
         if (err) {
           reject(err);
@@ -196,6 +202,7 @@ class Database {
           return;
         }
 
+        // 检查验证码是否过期
         const now = new Date();
         const expiresAt = new Date(row.expiresAt);
 
@@ -219,6 +226,36 @@ class Database {
             resolve(true);
           }
         });
+      });
+    });
+  }
+
+  // 验证用户密码
+  async verifyPassword(phoneNumber, password) {
+    return new Promise((resolve, reject) => {
+      const query = 'SELECT * FROM users WHERE phoneNumber = ?';
+      this.db.get(query, [phoneNumber], (err, row) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        if (!row) {
+          resolve(false);
+          return;
+        }
+
+        // 简单的密码比较（在实际项目中应该使用bcrypt等加密库）
+        if (row.password === password) {
+          // 返回用户信息，但不包含密码
+          resolve({
+            id: row.id,
+            phoneNumber: row.phoneNumber,
+            createdAt: row.createdAt
+          });
+        } else {
+          resolve(false);
+        }
       });
     });
   }

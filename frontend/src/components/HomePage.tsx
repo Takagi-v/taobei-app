@@ -40,11 +40,11 @@ const HomePage: React.FC<HomePageProps> = ({
             <h1 className="banner-title">淘宝网 - 淘！我喜欢</h1>
             <p className="banner-subtitle">亚洲较大的网上交易平台，提供各类服饰、美容、家居、数码、话费/点卡充值... 数亿优质商品，同时提供担保交易(先收货后付款)等安全交易保障服务</p>
             {!user && (
-              <div className="banner-actions">
-                <button className="btn btn-primary" onClick={onNavigateToRegister}>
+              <div className="auth-buttons">
+                <button className="btn btn-primary register-button" onClick={onNavigateToRegister}>
                   立即注册
                 </button>
-                <button className="btn btn-secondary" onClick={onNavigateToLogin}>
+                <button className="btn btn-secondary login-button" onClick={onNavigateToLogin}>
                   登录
                 </button>
               </div>
@@ -101,7 +101,7 @@ const HomePage: React.FC<HomePageProps> = ({
         <section className="user-section">
           <div className="container">
             <div className="user-welcome">
-              <h2>欢迎回来，{user.phone}！</h2>
+              <h2>欢迎回来，{user.phoneNumber}！</h2>
               <p>继续您的购物之旅</p>
             </div>
           </div>
