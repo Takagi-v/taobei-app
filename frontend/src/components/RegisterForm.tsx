@@ -291,7 +291,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onRegisterSuccess, onNaviga
       <style jsx>{`
         .register-container {
           min-height: calc(100vh - 60px);
-          background: linear-gradient(135deg, #ff9a56 0%, #ff6600 100%);
+          background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
           display: flex;
           align-items: center;
           justify-content: center;

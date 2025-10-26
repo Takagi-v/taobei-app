@@ -128,12 +128,12 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // 查找或创建用户
-    let user = await db.findUserByPhone(phoneNumber);
+    // 查找用户
+    const user = await db.findUserByPhone(phoneNumber);
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: '用户不存在'
+        message: '用户不存在，请先注册'
       });
     }
 

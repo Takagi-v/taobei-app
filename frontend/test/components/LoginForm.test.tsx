@@ -133,18 +133,15 @@ describe('LoginForm Component', () => {
       />
     );
 
-    // 查找忘记密码按钮（可能不存在）
-    const forgetPasswordButton = screen.queryByText('忘记密码');
+    // 查找忘记密码按钮（应该在密码登录模式下存在）
+    const forgetPasswordButton = screen.getByText('忘记密码');
+    expect(forgetPasswordButton).toBeInTheDocument();
 
-    if (forgetPasswordButton) {
-      fireEvent.click(forgetPasswordButton);
-      // 忘记密码功能的测试（根据实际实现调整）
-      // 这里可能需要根据实际的忘记密码逻辑来调整测试
-      expect(forgetPasswordButton).toBeInTheDocument();
-    } else {
-      // 如果找不到忘记密码按钮，说明UI结构不同，跳过这个测试
-      expect(true).toBe(true);
-    }
+    // 点击忘记密码按钮应该切换到短信登录模式
+    fireEvent.click(forgetPasswordButton);
+    
+    // 验证切换到短信登录模式后，应该显示验证码输入框
+    expect(screen.getByPlaceholderText('输入验证码')).toBeInTheDocument();
   });
 
   test('忘记密码按钮功能测试', async () => {
@@ -155,17 +152,15 @@ describe('LoginForm Component', () => {
       />
     );
 
-    // 查找忘记密码按钮（可能不存在）
-    const forgetPasswordButton = screen.queryByText('忘记密码？');
+    // 查找忘记密码按钮
+    const forgetPasswordButton = screen.getByText('忘记密码');
     
-    if (forgetPasswordButton) {
-      // 测试忘记密码按钮的点击功能（简化测试，只验证按钮存在）
-      expect(forgetPasswordButton).toBeInTheDocument();
-      fireEvent.click(forgetPasswordButton);
-    } else {
-      // 如果找不到忘记密码按钮，说明UI结构不同，跳过这个测试
-      expect(true).toBe(true);
-    }
+    // 测试忘记密码按钮的点击功能
+    expect(forgetPasswordButton).toBeInTheDocument();
+    fireEvent.click(forgetPasswordButton);
+    
+    // 验证点击后切换到短信登录模式
+    expect(screen.getByPlaceholderText('输入验证码')).toBeInTheDocument();
   });
 
   test('点击登录按钮应该处理登录逻辑', async () => {
